@@ -1,14 +1,37 @@
 import * as net from "net";
 
-const server = net.createServer((c) => {
-	// 'connection' listener.
+const server = net.createServer((socket) => {
 	console.log("client connected");
 
-	c.on("end", () => {
+	socket.on("end", () => {
 		console.log("client disconnected");
 	});
-	c.write("HTTP/1.1 200 OK\r\n\r\n");
-	c.pipe(c);
+
+	socket.on("data", (data) => {
+		const request = data.toString();
+		const requestLine = request.split("\r\n")[0];
+		const [method, url] = requestLine.split(" ");
+
+		if (method === "GET") {
+			if (url === "/" || url === "/index.html") {
+				socket.write("HTTP/1.1 200 OK\r\n\r\n");
+				socket.write(
+					"<html><body><h1>Welcome to the home page!</h1></body></html>",
+				);
+			} else {
+				socket.write("HTTP/1.1 404 Not Found\r\n\r\n");
+				socket.write("<html><body><h1>404 Not Found</h1></body></html>");
+			}
+		} else {
+			socket.write("HTTP/1.1 405 Method Not Allowed\r\n\r\n");
+			socket.write("<html><body><h1>405 Method Not Allowed</h1></body></html>");
+		}
+		socket.end();
+	});
+
+	socket.on("error", (err) => {
+		console.error("Socket error:", err);
+	});
 });
 
 server.on("error", (err) => {
