@@ -1,6 +1,7 @@
-import * as fs from "fs";
 import * as net from "net";
+import * as fs from "fs";
 import * as path from "path";
+import * as zlib from "zlib";
 
 // Function to display help message
 function displayHelp() {
@@ -66,13 +67,30 @@ const server = net.createServer((socket) => {
 			if (method === "GET") {
 				if (url.startsWith("/echo/")) {
 					const echoStr = url.slice(6);
-					socket.write("HTTP/1.1 200 OK\r\n");
+					const respond = (body: Buffer) => {
+						socket.write("HTTP/1.1 200 OK\r\n");
+						if (supportsGzip) {
+							socket.write("Content-Encoding: gzip\r\n");
+						}
+						socket.write("Content-Type: text/plain\r\n");
+						socket.write(`Content-Length: ${body.length}\r\n\r\n`);
+						socket.write(body);
+						socket.end();
+					};
+
 					if (supportsGzip) {
-						socket.write("Content-Encoding: gzip\r\n");
+						zlib.gzip(echoStr, (err, gzipBuffer) => {
+							if (err) {
+								console.error("Gzip error:", err);
+								socket.write("HTTP/1.1 500 Internal Server Error\r\n\r\n");
+								socket.end();
+							} else {
+								respond(gzipBuffer);
+							}
+						});
+					} else {
+						respond(Buffer.from(echoStr));
 					}
-					socket.write("Content-Type: text/plain\r\n");
-					socket.write(`Content-Length: ${Buffer.byteLength(echoStr)}\r\n\r\n`);
-					socket.write(echoStr);
 				} else if (url === "/" || url === "/index.html") {
 					const body =
 						"<html><body><h1>Welcome to the home page!</h1></body></html>";
@@ -80,6 +98,7 @@ const server = net.createServer((socket) => {
 					socket.write("Content-Type: text/html\r\n");
 					socket.write(`Content-Length: ${Buffer.byteLength(body)}\r\n\r\n`);
 					socket.write(body);
+					socket.end();
 				} else if (url === "/user-agent") {
 					const userAgent = headers["user-agent"] || "";
 					socket.write("HTTP/1.1 200 OK\r\n");
@@ -88,6 +107,7 @@ const server = net.createServer((socket) => {
 						`Content-Length: ${Buffer.byteLength(userAgent)}\r\n\r\n`,
 					);
 					socket.write(userAgent);
+					socket.end();
 				} else if (url.startsWith("/files/")) {
 					const filePath = path.join(directory, url.slice(7));
 					fs.readFile(filePath, (err, fileData) => {
@@ -107,13 +127,13 @@ const server = net.createServer((socket) => {
 						}
 						socket.end();
 					});
-					return;
 				} else {
 					const body = "<html><body><h1>404 Not Found</h1></body></html>";
 					socket.write("HTTP/1.1 404 Not Found\r\n");
 					socket.write("Content-Type: text/html\r\n");
 					socket.write(`Content-Length: ${Buffer.byteLength(body)}\r\n\r\n`);
 					socket.write(body);
+					socket.end();
 				}
 			} else if (method === "POST") {
 				if (url.startsWith("/files/")) {
@@ -127,11 +147,10 @@ const server = net.createServer((socket) => {
 						}
 						socket.end();
 					});
-					return;
+				} else {
+					socket.write("HTTP/1.1 404 Not Found\r\n\r\n");
+					socket.end();
 				}
-
-				socket.write("HTTP/1.1 404 Not Found\r\n\r\n");
-				socket.end();
 			} else {
 				const body =
 					"<html><body><h1>405 Method Not Allowed</h1></body></html>";
