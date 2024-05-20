@@ -60,7 +60,8 @@ const server = net.createServer((socket) => {
 			);
 
 			const acceptEncoding = headers["accept-encoding"] || "";
-			const supportsGzip = acceptEncoding.split(", ").includes("gzip");
+			const encodings = acceptEncoding.split(",").map((enc) => enc.trim());
+			const supportsGzip = encodings.includes("gzip");
 
 			if (method === "GET") {
 				if (url.startsWith("/echo/")) {
