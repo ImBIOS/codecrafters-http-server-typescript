@@ -1,4 +1,16 @@
+import * as fs from "fs";
 import * as net from "net";
+import * as path from "path";
+
+// Default directory if --directory is not provided
+let directory = process.cwd();
+
+// Parse command line arguments
+const args = process.argv.slice(2);
+const directoryFlagIndex = args.indexOf("--directory");
+if (directoryFlagIndex !== -1 && directoryFlagIndex < args.length - 1) {
+	directory = args[directoryFlagIndex + 1];
+}
 
 const server = net.createServer((socket) => {
 	console.log("client connected");
@@ -44,6 +56,24 @@ const server = net.createServer((socket) => {
 				socket.write("Content-Type: text/plain\r\n");
 				socket.write(`Content-Length: ${Buffer.byteLength(userAgent)}\r\n\r\n`);
 				socket.write(userAgent);
+			} else if (url.startsWith("/files/")) {
+				const filePath = path.join(directory, url.slice(7));
+				fs.readFile(filePath, (err, fileData) => {
+					if (err) {
+						const body = "404 Not Found";
+						socket.write("HTTP/1.1 404 Not Found\r\n");
+						socket.write("Content-Type: text/html\r\n");
+						socket.write(`Content-Length: ${Buffer.byteLength(body)}\r\n\r\n`);
+						socket.write(body);
+					} else {
+						socket.write("HTTP/1.1 200 OK\r\n");
+						socket.write("Content-Type: application/octet-stream\r\n");
+						socket.write(`Content-Length: ${fileData.length}\r\n\r\n`);
+						socket.write(fileData);
+					}
+					socket.end();
+				});
+				return;
 			} else {
 				const body = "<html><body><h1>404 Not Found</h1></body></html>";
 				socket.write("HTTP/1.1 404 Not Found\r\n");
