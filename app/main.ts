@@ -14,17 +14,31 @@ const server = net.createServer((socket) => {
 
 		if (method === "GET") {
 			if (url === "/" || url === "/index.html") {
-				socket.write("HTTP/1.1 200 OK\r\n\r\n");
-				socket.write(
-					"<html><body><h1>Welcome to the home page!</h1></body></html>",
-				);
+				const body =
+					"<html><body><h1>Welcome to the home page!</h1></body></html>";
+				socket.write("HTTP/1.1 200 OK\r\n");
+				socket.write("Content-Type: text/html\r\n");
+				socket.write(`Content-Length: ${Buffer.byteLength(body)}\r\n\r\n`);
+				socket.write(body);
+			} else if (url.startsWith("/echo/")) {
+				const echoStr = url.slice(6);
+				socket.write("HTTP/1.1 200 OK\r\n");
+				socket.write("Content-Type: text/plain\r\n");
+				socket.write(`Content-Length: ${Buffer.byteLength(echoStr)}\r\n\r\n`);
+				socket.write(echoStr);
 			} else {
-				socket.write("HTTP/1.1 404 Not Found\r\n\r\n");
-				socket.write("<html><body><h1>404 Not Found</h1></body></html>");
+				const body = "<html><body><h1>404 Not Found</h1></body></html>";
+				socket.write("HTTP/1.1 404 Not Found\r\n");
+				socket.write("Content-Type: text/html\r\n");
+				socket.write(`Content-Length: ${Buffer.byteLength(body)}\r\n\r\n`);
+				socket.write(body);
 			}
 		} else {
-			socket.write("HTTP/1.1 405 Method Not Allowed\r\n\r\n");
-			socket.write("<html><body><h1>405 Method Not Allowed</h1></body></html>");
+			const body = "<html><body><h1>405 Method Not Allowed</h1></body></html>";
+			socket.write("HTTP/1.1 405 Method Not Allowed\r\n");
+			socket.write("Content-Type: text/html\r\n");
+			socket.write(`Content-Length: ${Buffer.byteLength(body)}\r\n\r\n`);
+			socket.write(body);
 		}
 		socket.end();
 	});
