@@ -59,20 +59,26 @@ const server = net.createServer((socket) => {
 				{} as Record<string, string>,
 			);
 
+			const acceptEncoding = headers["accept-encoding"] || "";
+			const supportsGzip = acceptEncoding.split(", ").includes("gzip");
+
 			if (method === "GET") {
-				if (url === "/" || url === "/index.html") {
+				if (url.startsWith("/echo/")) {
+					const echoStr = url.slice(6);
+					socket.write("HTTP/1.1 200 OK\r\n");
+					if (supportsGzip) {
+						socket.write("Content-Encoding: gzip\r\n");
+					}
+					socket.write("Content-Type: text/plain\r\n");
+					socket.write(`Content-Length: ${Buffer.byteLength(echoStr)}\r\n\r\n`);
+					socket.write(echoStr);
+				} else if (url === "/" || url === "/index.html") {
 					const body =
 						"<html><body><h1>Welcome to the home page!</h1></body></html>";
 					socket.write("HTTP/1.1 200 OK\r\n");
 					socket.write("Content-Type: text/html\r\n");
 					socket.write(`Content-Length: ${Buffer.byteLength(body)}\r\n\r\n`);
 					socket.write(body);
-				} else if (url.startsWith("/echo/")) {
-					const echoStr = url.slice(6);
-					socket.write("HTTP/1.1 200 OK\r\n");
-					socket.write("Content-Type: text/plain\r\n");
-					socket.write(`Content-Length: ${Buffer.byteLength(echoStr)}\r\n\r\n`);
-					socket.write(echoStr);
 				} else if (url === "/user-agent") {
 					const userAgent = headers["user-agent"] || "";
 					socket.write("HTTP/1.1 200 OK\r\n");
